@@ -67,15 +67,15 @@ class ArgumentParser:
         for key, value in self.reviews.items():
             file_supports = []
             ix = 0
-            while not value[ix].startswith("## Support"):
+            while ix < len(value) and not value[ix].startswith("## Support"):
                 ix += 1
 
-            ix += 1  # skip line with ## support
-
-            while not value[ix].startswith("##") and ix < len(value):
-                file_supports.append(value[ix].strip())
-                ix += 1
-            self.attack_ix = ix
+            if ix + 1 < len(value):
+                ix += 1  # skip line with ## support
+                while not value[ix].startswith("##") and ix < len(value):
+                    file_supports.append(value[ix].strip())
+                    ix += 1
+                self.attack_ix = ix
             supports[key] = file_supports
         return supports
 
