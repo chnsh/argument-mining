@@ -1,4 +1,8 @@
+import logging
+
 from data_loader import get_task1
+
+LABEL_UNIVERSE = {'value', 'fact', 'reference', 'policy', 'non-arg', 'testimony', 'quote'}
 
 
 # can speed up the parser with pre-compiled regex for the future
@@ -20,8 +24,9 @@ class ArgumentParser:
             for ix, line in enumerate(value):
                 if not line.startswith("##"):
                     file_args.append(line.strip())
-                self.labels_ix = ix  # can refactor get labels to start from here
-                break
+                else:
+                    self.labels_ix = ix  # can refactor get labels to start from here
+                    break
             arguments[key] = file_args
         return arguments
 
@@ -40,8 +45,12 @@ class ArgumentParser:
             ix += 1  # skip line with ##labels
 
             while not value[ix].startswith("##"):
-                file_labels.append(
-                    value[ix].split()[1].strip())  # format is 1. LABEL (take 2nd index value)
+                parsed_label = value[ix].split()[
+                    1].strip()  # format is 1. LABEL (take 2nd index value)
+                if parsed_label not in LABEL_UNIVERSE:
+                    logging.warning("{} not in label universe in file {}".format(parsed_label, key))
+                    break
+                file_labels.append(parsed_label)
                 ix += 1
             self.support_ix = ix
             labels[key] = file_labels
@@ -89,12 +98,36 @@ class ArgumentParser:
         return attacks
 
 
-class InconsistentReviews:
-    def __init__(self, argument_parser: ArgumentParser):
-        self.argument_parser = argument_parser
+class InconsistentReviewFinder:
+    def __init__(self, review1, review2):
+        assert review1.keys() == review2.keys()  # both should have the same keys
+        self.argument_parser1 = ArgumentParser(review1)
+        self.argument_parser2 = ArgumentParser(review2)
+
+    def find_inconsistent_files(self):
+        arguments1 = self.argument_parser1.get_arguments()
+        arguments2 = self.argument_parser2.get_arguments()
+
+        labels1 = self.argument_parser1.get_labels()
+        labels2 = self.argument_parser2.get_labels()
+
+        inconsistent_files = set()
+
+        for key in arguments1.keys():
+            argument_one = arguments1[key]
+            argument_two = arguments2[key]
+
+            label_one = labels1[key]
+            label_two = labels2[key]
+
+            if argument_one != argument_two:
+                inconsistent_files.add(key)
+
+            if label_one != label_two:
+                inconsistent_files.add(key)
+        return inconsistent_files
 
 
 if __name__ == '__main__':
     reviews1, reviews2 = get_task1()
-    print(ArgumentParser(reviews1).get_labels())
-    print(ArgumentParser(reviews2).get_labels())
+    InconsistentReviewFinder(reviews1, reviews2).find_inconsistent_files()
